@@ -145,20 +145,43 @@ impl MergeMintContract {
         items
     }
 
-    /// Return all open bounty IDs that carry the requested tag.
+    /// Return a bounded page of bounty IDs that carry the requested tag.
     ///
     /// Supports `GET /api/bounties?tag=<tag>`. Iterates the open-bounties index
-    /// and looks up each bounty to check `bounty.tags`; callers can page the
-    /// result with `get_open_bounties` first and apply filtering client-side
-    /// for large lists.
-    pub fn get_bounties_by_tag(env: Env, tag: Symbol) -> Vec<BountyId> {
+    /// and looks up each bounty to check `bounty.tags`. `offset` is the
+    /// zero-based index of the first item to return; `limit` is capped at
+    /// `MAX_LIMIT` (50) to bound ledger CPU cost. Returns an empty vec when
+    /// `offset` is beyond the end of the list.
+    ///
+    /// Invalid tags fail with `InvalidTag`, matching `create_bounty` validation.
+    pub fn get_bounties_by_tag(env: Env, tag: Symbol, offset: u32, limit: u32) -> Vec<BountyId> {
         crate::symbols::validate_symbol_or_fail(&env, crate::symbols::SymbolKind::Tag, &tag);
-        let open_ids = storage::get_open_bounties(&env);
-        let mut result = Vec::new(&env);
+        let all = Self::collect_bounties_by_tag(&env, &tag);
+        let (items, _) = paginate(&env, all, Some(offset), limit);
+        items
+    }
+
+    /// Return the total number of bounties that carry the requested tag.
+    ///
+    /// Companion to `get_bounties_by_tag` so clients can render totals and
+    /// page counts. Invalid tags fail with `InvalidTag`, matching
+    /// `create_bounty` validation.
+    pub fn get_tag_count(env: Env, tag: Symbol) -> u32 {
+        crate::symbols::validate_symbol_or_fail(&env, crate::symbols::SymbolKind::Tag, &tag);
+        Self::collect_bounties_by_tag(&env, &tag).len()
+    }
+
+    /// Collect every open bounty ID carrying `tag`, in index order.
+    ///
+    /// Shared by `get_bounties_by_tag` and `get_tag_count` so both agree on
+    /// the same set. Assumes `tag` has already been validated.
+    fn collect_bounties_by_tag(env: &Env, tag: &Symbol) -> Vec<BountyId> {
+        let open_ids = storage::get_open_bounties(env);
+        let mut result = Vec::new(env);
         for id in open_ids.iter() {
-            if let Some(bounty) = storage::get_bounty(&env, &id) {
+            if let Some(bounty) = storage::get_bounty(env, &id) {
                 for t in bounty.tags.iter() {
-                    if t == tag {
+                    if t == *tag {
                         result.push_back(id.clone());
                         break;
                     }
@@ -198,20 +221,6 @@ impl MergeMintContract {
     /// call is O(1) rather than a scan.
     ///
     /// Results are returned newest first (most recently completed/cancelled
-    /// bounty first). `offset` is the zero-based index of the first item to
-    /// return; `limit` is capped at `MAX_LIMIT` (50) to bound ledger CPU cost.
-    /// Returns an empty `Vec` when `offset` is beyond the end of the history.
-    pub fn get_contributor_bounty_history(
-        env: Env,
-        address: Address,
-        offset: u32,
-        limit: u32,
-    ) -> Vec<BountyId> {
-        let mut all = storage::get_contributor_bounty_history(&env, &address);
-        // Newest first: the index is appended in transition order, so reverse
-        // it to surface the most recent entries at the front of the page.
-        all.reverse();
-        let (items, _) = paginate(&env, all, Some(offset), limit);
-        items
-    }
-}
+  
+
+/* … truncated 732 chars — edit only what you need near the top … */
