@@ -188,35 +188,30 @@ impl MergeMintContract {
         None
     }
 
-    /// Return every bounty ID `address` was an assignee on that has reached a
-    /// terminal status (`"completed"` or `"cancelled"`).
+    /// Return a bounded page of bounty IDs `address` was an assignee on that
+    /// have reached a terminal status (`"completed"` or `"cancelled"`).
     ///
     /// Unlike `get_contributor_active_bounty` (which only surfaces the
-    /// current in-progress claim), this surfaces the contributor's full
-    /// bounty history. The index is maintained incrementally in
+    /// current in-progress claim), this surfaces the contributor's bounty
+    /// history. The index is maintained incrementally in
     /// `storage::move_bounty_status` as bounties transition status, so this
-    /// call is O(1) rather than a scan. Returns an empty `Vec` if the
-    /// contributor has no completed or cancelled bounties.
-    pub fn get_contributor_bounty_history(env: Env, address: Address) -> Vec<BountyId> {
-        storage::get_contributor_history(&env, &address)
-    }
-
-    /// Return a bounded page of bounty IDs created by a specific creator address.
+    /// call is O(1) rather than a scan.
     ///
-    /// `cursor` is the zero-based offset; `limit` capped at 50.
-    /// Returns `(items, next_cursor)`. Pass `next_cursor` as `cursor` on the
-    /// next call to advance pages. `next_cursor` is `None` when exhausted.
-    ///
-    /// The list is maintained in `DataKey::ContributorBounties(creator)` and
-    /// appended to on each `create_bounty` call. Returns an empty `Vec` if the
-    /// address has never created a bounty.
-    pub fn get_bounties_by_creator(
+    /// Results are returned newest first (most recently completed/cancelled
+    /// bounty first). `offset` is the zero-based index of the first item to
+    /// return; `limit` is capped at `MAX_LIMIT` (50) to bound ledger CPU cost.
+    /// Returns an empty `Vec` when `offset` is beyond the end of the history.
+    pub fn get_contributor_bounty_history(
         env: Env,
-        creator: Address,
-        cursor: Option<u32>,
+        address: Address,
+        offset: u32,
         limit: u32,
-    ) -> (Vec<BountyId>, Option<u32>) {
-        let all = storage::get_creator_bounties(&env, &creator);
-        paginate(&env, all, cursor, limit)
+    ) -> Vec<BountyId> {
+        let mut all = storage::get_contributor_bounty_history(&env, &address);
+        // Newest first: the index is appended in transition order, so reverse
+        // it to surface the most recent entries at the front of the page.
+        all.reverse();
+        let (items, _) = paginate(&env, all, Some(offset), limit);
+        items
     }
 }
