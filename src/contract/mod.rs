@@ -40,4 +40,18 @@ impl MergeMintContract {
         }
         Ok(storage::get_tag_count(&env, &tag))
     }
+
+    /// Replaces the tags on an Open bounty. Callable only by the bounty creator.
+    ///
+    /// Stale tag index entries are removed and new ones added so that
+    /// `get_bounties_by_tag` stays consistent. The `TooManyTags` limit still
+    /// applies, and a `BountyTagsUpdated` event is emitted for the indexer.
+    pub fn update_tags(
+        env: Env,
+        creator: Address,
+        bounty_id: BountyId,
+        tags: Vec<Symbol>,
+    ) -> Result<(), ContractError> {
+        mutations::update_tags(env, creator, bounty_id, tags)
+    }
 }
