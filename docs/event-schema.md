@@ -64,6 +64,12 @@ Contract events emitted for indexer integration.
 - **Trigger**: A milestone is completed and its staged reward paid
 - **Purpose**: Notify indexer of milestone-level progress
 
+### contributor_metadata_updated
+- **Topics**: `(Symbol("contributor_metadata_updated"), contributor_address)`
+- **Data**: `metadata`
+- **Trigger**: Contributor metadata is updated via `update_contributor_metadata`
+- **Purpose**: Notify indexer of contributor profile changes so cached profiles stay fresh
+
 ## Queries
 
 ### get_contributor_bounty_history

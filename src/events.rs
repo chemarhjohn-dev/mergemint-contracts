@@ -81,3 +81,9 @@ pub fn emit_milestone_completed(
     env.events()
         .publish((topic, milestone_index), (bounty_id.clone(), *amount));
 }
+
+pub fn emit_contributor_metadata_updated(env: &Env, contributor: &Address, metadata: &BytesN<32>) {
+    let topic = Symbol::new(env, "contributor_metadata_updated");
+    env.events()
+        .publish((topic, contributor.clone()), metadata.clone());
+}
